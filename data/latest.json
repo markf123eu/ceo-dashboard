@@ -1,0 +1,117 @@
+{
+  "period": {
+    "from": "2026-03-02",
+    "to": "2026-03-08",
+    "days": 7
+  },
+  "totals": {
+    "raw": 60,
+    "unique": 55,
+    "duplicates": 5
+  },
+  "geography": {
+    "within_10km": 26,
+    "band_10_20km": 7,
+    "outside_20km": 13,
+    "unknown": 9,
+    "dublin_pct": 60
+  },
+  "campaigns": {
+    "Gas Boiler And \u20ac700 Heating Bonus_Dublin_ACB": 26,
+    "Gas Boiler \u20ac22/Week_Dublin_ACB": 10,
+    "Oil Boiler \u20ac25/Week_Dublin_ACB": 9,
+    "Energy Upgrade Retargeting Campaign": 4,
+    "Full House Plumbing_Dublin_ACB": 3,
+    "Gas Boiler Autumn Offer \u20ac700_Dublin": 3
+  },
+  "cpl": {
+    "overall": 20.51,
+    "total_spend": 1127.78,
+    "by_campaign": {
+      "Gas Boiler \u20ac22/Week_Dublin_ACB": {
+        "spend": 210.42,
+        "leads": 10,
+        "cpl": 21.04
+      },
+      "Oil Boiler \u20ac25/Week_Dublin_ACB": {
+        "spend": 214.15,
+        "leads": 9,
+        "cpl": 23.79
+      },
+      "Gas Boiler And \u20ac700 Heating Bonus_Dublin_ACB": {
+        "spend": 351.82,
+        "leads": 26,
+        "cpl": 13.53
+      },
+      "Full House Plumbing_Dublin_ACB": {
+        "spend": 139.48,
+        "leads": 3,
+        "cpl": 46.49
+      },
+      "Gas Boiler Autumn Offer \u20ac700_Dublin": {
+        "spend": 140.34,
+        "leads": 3,
+        "cpl": 46.78
+      },
+      "Energy Upgrade Retargeting Campaign": {
+        "spend": 71.57,
+        "leads": 4,
+        "cpl": 17.89
+      }
+    }
+  },
+  "hiring": {
+    "leads": 35,
+    "spend": 69.7,
+    "campaigns": {
+      "Hiring | Lead | ACB": {
+        "spend": 69.7,
+        "leads": 35
+      }
+    }
+  },
+  "platforms": {
+    "fb": 39,
+    "ig": 16
+  },
+  "timelines": {
+    "asap": 15,
+    "with_1-3_month": 14,
+    "after_3_months": 12,
+    "within_1_month": 11,
+    "unknown": 3
+  },
+  "daily_volume": {
+    "2026-03-02": 12,
+    "2026-03-03": 4,
+    "2026-03-04": 11,
+    "2026-03-05": 11,
+    "2026-03-06": 6,
+    "2026-03-07": 5,
+    "2026-03-08": 6
+  },
+  "priority_leads": 14,
+  "duplicate_contacts": [
+    {
+      "name": "Ger Gacquin",
+      "email": "gergac@eircom.net"
+    },
+    {
+      "name": "Margaret Reddy",
+      "email": "redmaggie38@gmail.com"
+    },
+    {
+      "name": "Tom Mulligan",
+      "email": "mulliganthomasm@gmail.com"
+    },
+    {
+      "name": "Bridie Hosty",
+      "email": "biddymon@hotmail.com"
+    },
+    {
+      "name": "Tom Mulligan",
+      "email": "mulliganthomasm@gmail.com"
+    }
+  ],
+  "generated_at": "2026-03-11T12:33:09.110618"
+}
