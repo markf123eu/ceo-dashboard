@@ -158,3 +158,8 @@ def health():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
+@app.route("/test-slack", methods=["GET"])
+def test_slack():
+    result = post_to_slack("🧪 Test", "Webhook server is working!", {"Status": "Connected"})
+    return jsonify(result), 200
