@@ -14,6 +14,41 @@ JOBBER_REFRESH_TOKEN = os.getenv("JOBBER_REFRESH_TOKEN")
 JOBBER_CLIENT_ID     = os.getenv("JOBBER_CLIENT_ID")
 JOBBER_CLIENT_SECRET = os.getenv("JOBBER_CLIENT_SECRET")
 
+# Mutable token storage
+jobber_tokens = {
+    "access_token": JOBBER_ACCESS_TOKEN,
+    "refresh_token": JOBBER_REFRESH_TOKEN,
+}
+
+def refresh_jobber_token():
+    print("Refreshing Jobber token...", flush=True)
+    resp = requests.post("https://api.getjobber.com/api/oauth/token",
+        data={
+            "client_id": JOBBER_CLIENT_ID,
+            "client_secret": JOBBER_CLIENT_SECRET,
+            "refresh_token": jobber_tokens["refresh_token"],
+            "grant_type": "refresh_token",
+        })
+    if resp.status_code == 200:
+        data = resp.json()
+        jobber_tokens["access_token"] = data["access_token"]
+        jobber_tokens["refresh_token"] = data["refresh_token"]
+        print(f"Token refreshed successfully", flush=True)
+        return True
+    print(f"Token refresh failed: {resp.json()}", flush=True)
+    return False
+
+def jobber_graphql(query):
+    resp = requests.post("https://api.getjobber.com/api/graphql",
+        headers={"Authorization": f"Bearer {jobber_tokens['access_token']}", "Content-Type": "application/json"},
+        json={"query": query})
+    if resp.status_code == 401 or resp.json().get("message") == "Access token expired":
+        if refresh_jobber_token():
+            resp = requests.post("https://api.getjobber.com/api/graphql",
+                headers={"Authorization": f"Bearer {jobber_tokens['access_token']}", "Content-Type": "application/json"},
+                json={"query": query})
+    return resp.json()
+
 # HubSpot Sales Pipeline stage IDs
 HUBSPOT_PIPELINE_ID = "default"
 STAGE_MAP = {
@@ -91,72 +126,53 @@ def create_or_update_hubspot_deal(contact_id, deal_name, stage_id, amount=None, 
                 headers={"Authorization": f"Bearer {HUBSPOT_TOKEN}"})
         return deal_id
 
-def fetch_jobber_client(client_id):
-    resp = requests.post("https://api.getjobber.com/api/graphql",
-        headers={"Authorization": f"Bearer {JOBBER_ACCESS_TOKEN}", "Content-Type": "application/json"},
-        json={"query": f"""
-            query {{
-                client(id: "{client_id}") {{
-                    id name emails {{ address }} phones {{ number }}
-                    billingAddress {{ street city postalCode }}
-                }}
-            }}
-        """})
-    return resp.json().get("data", {}).get("client")
-
 def fetch_jobber_request(request_id):
-    resp = requests.post("https://api.getjobber.com/api/graphql",
-        headers={"Authorization": f"Bearer {JOBBER_ACCESS_TOKEN}", "Content-Type": "application/json"},
-        json={"query": f"""
-            query {{
-                request(id: "{request_id}") {{
-                    id title
-                    client {{
-                        id name
-                        emails {{ address }}
-                        phones {{ number }}
-                    }}
+    result = jobber_graphql(f"""
+        query {{
+            request(id: "{request_id}") {{
+                id title
+                client {{
+                    id name
+                    emails {{ address }}
+                    phones {{ number }}
                 }}
             }}
-        """})
-    print(f"Jobber request fetch: {resp.status_code} {resp.json()}", flush=True)
-    return resp.json().get("data", {}).get("request")
+        }}
+    """)
+    print(f"Jobber request fetch: {result}", flush=True)
+    return result.get("data", {}).get("request")
 
 def fetch_jobber_job(job_id):
-    resp = requests.post("https://api.getjobber.com/api/graphql",
-        headers={"Authorization": f"Bearer {JOBBER_ACCESS_TOKEN}", "Content-Type": "application/json"},
-        json={"query": f"""
-            query {{
-                job(id: "{job_id}") {{
-                    id title jobNumber total
-                    client {{
-                        id name
-                        emails {{ address }}
-                        phones {{ number }}
-                    }}
+    result = jobber_graphql(f"""
+        query {{
+            job(id: "{job_id}") {{
+                id title jobNumber total
+                client {{
+                    id name
+                    emails {{ address }}
+                    phones {{ number }}
                 }}
             }}
-        """})
-    print(f"Jobber job fetch: {resp.status_code} {resp.json()}", flush=True)
-    return resp.json().get("data", {}).get("job")
+        }}
+    """)
+    print(f"Jobber job fetch: {result}", flush=True)
+    return result.get("data", {}).get("job")
 
 def fetch_jobber_quote(quote_id):
-    resp = requests.post("https://api.getjobber.com/api/graphql",
-        headers={"Authorization": f"Bearer {JOBBER_ACCESS_TOKEN}", "Content-Type": "application/json"},
-        json={"query": f"""
-            query {{
-                quote(id: "{quote_id}") {{
-                    id title total
-                    client {{
-                        id name
-                        emails {{ address }}
-                        phones {{ number }}
-                    }}
+    result = jobber_graphql(f"""
+        query {{
+            quote(id: "{quote_id}") {{
+                id title total
+                client {{
+                    id name
+                    emails {{ address }}
+                    phones {{ number }}
                 }}
             }}
-        """})
-    print(f"Jobber quote fetch: {resp.status_code} {resp.json()}", flush=True)
-    return resp.json().get("data", {}).get("quote")
+        }}
+    """)
+    print(f"Jobber quote fetch: {result}", flush=True)
+    return result.get("data", {}).get("quote")
 
 @app.route("/webhook/jobber", methods=["POST"])
 def jobber_webhook():
