@@ -1,4 +1,4 @@
-import os, json, requests
+import os, json, requests, sys
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
@@ -109,10 +109,10 @@ def jobber_webhook():
     try:
         data = request.json
         topic = data.get("topic", "")
-        print(f"RAW PAYLOAD: {json.dumps(data)}")
+        print(f"RAW PAYLOAD: {json.dumps(data)}", flush=True)
         payload = data.get("data", {})
 
-        print(f"Received webhook: {topic}")
+        print(f"Received webhook: {topic}", flush=True)
         print(json.dumps(data, indent=2))
         
         # Post to Slack immediately regardless of client lookup
