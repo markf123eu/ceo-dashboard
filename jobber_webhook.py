@@ -109,6 +109,7 @@ def jobber_webhook():
     try:
         data = request.json
         topic = data.get("topic", "")
+        print(f"RAW PAYLOAD: {json.dumps(data)}")
         payload = data.get("data", {})
 
         print(f"Received webhook: {topic}")
