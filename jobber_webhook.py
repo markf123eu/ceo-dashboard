@@ -104,6 +104,60 @@ def fetch_jobber_client(client_id):
         """})
     return resp.json().get("data", {}).get("client")
 
+def fetch_jobber_request(request_id):
+    resp = requests.post("https://api.getjobber.com/api/graphql",
+        headers={"Authorization": f"Bearer {JOBBER_ACCESS_TOKEN}", "Content-Type": "application/json"},
+        json={"query": f"""
+            query {{
+                request(id: "{request_id}") {{
+                    id title
+                    client {{
+                        id name
+                        emails {{ address }}
+                        phones {{ number }}
+                    }}
+                }}
+            }}
+        """})
+    print(f"Jobber request fetch: {resp.status_code} {resp.json()}", flush=True)
+    return resp.json().get("data", {}).get("request")
+
+def fetch_jobber_job(job_id):
+    resp = requests.post("https://api.getjobber.com/api/graphql",
+        headers={"Authorization": f"Bearer {JOBBER_ACCESS_TOKEN}", "Content-Type": "application/json"},
+        json={"query": f"""
+            query {{
+                job(id: "{job_id}") {{
+                    id title jobNumber total
+                    client {{
+                        id name
+                        emails {{ address }}
+                        phones {{ number }}
+                    }}
+                }}
+            }}
+        """})
+    print(f"Jobber job fetch: {resp.status_code} {resp.json()}", flush=True)
+    return resp.json().get("data", {}).get("job")
+
+def fetch_jobber_quote(quote_id):
+    resp = requests.post("https://api.getjobber.com/api/graphql",
+        headers={"Authorization": f"Bearer {JOBBER_ACCESS_TOKEN}", "Content-Type": "application/json"},
+        json={"query": f"""
+            query {{
+                quote(id: "{quote_id}") {{
+                    id title total
+                    client {{
+                        id name
+                        emails {{ address }}
+                        phones {{ number }}
+                    }}
+                }}
+            }}
+        """})
+    print(f"Jobber quote fetch: {resp.status_code} {resp.json()}", flush=True)
+    return resp.json().get("data", {}).get("quote")
+
 @app.route("/webhook/jobber", methods=["POST"])
 def jobber_webhook():
     try:
@@ -128,17 +182,40 @@ def jobber_webhook():
             slack_result = post_to_slack(title, msg, {"Topic": topic})
             print(f"Slack result: {slack_result}")
 
-        # Get client info if available
-        client_id = payload.get("clientId") or payload.get("client_id")
-        client = fetch_jobber_client(client_id) if client_id else None
-        client_name = client.get("name", "Unknown") if client else payload.get("client_name", "Unknown")
-        client_email = client.get("emails", [{}])[0].get("address") if client else None
+        # Fetch full details from Jobber using itemId
+        item_id = payload.get("id", "")
+        client = None
+        client_name = "Unknown"
+        client_email = None
+        job_number = None
+        total = None
+        title = None
+
+        if item_id:
+            if topic in ("REQUEST_UPDATE",):
+                record = fetch_jobber_request(item_id)
+            elif topic in ("QUOTE_SENT", "QUOTE_UPDATE"):
+                record = fetch_jobber_quote(item_id)
+            elif topic in ("JOB_UPDATE", "VISIT_COMPLETE"):
+                record = fetch_jobber_job(item_id)
+            else:
+                record = None
+
+            if record and record.get("client"):
+                client = record["client"]
+                client_name = client.get("name", "Unknown")
+                emails = client.get("emails", [])
+                client_email = emails[0].get("address") if emails else None
+                job_number = record.get("jobNumber")
+                total = record.get("total")
+                title = record.get("title")
 
         # Build Slack details
         details = {"👤 Client": client_name}
-        if payload.get("jobNumber"): details["📋 Job #"] = str(payload.get("jobNumber"))
-        if payload.get("total"): details["💶 Value"] = f"€{payload.get('total')}"
-        if payload.get("title"): details["📌 Title"] = payload.get("title")
+        if job_number: details["📋 Job #"] = str(job_number)
+        if total: details["💶 Value"] = f"€{total}"
+        if title: details["📌 Title"] = title
+        if client_email: details["📧 Email"] = client_email
 
         # Post to Slack
         if topic in SLACK_MESSAGES:
