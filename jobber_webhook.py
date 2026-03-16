@@ -113,6 +113,12 @@ def jobber_webhook():
 
         print(f"Received webhook: {topic}")
         print(json.dumps(data, indent=2))
+        
+        # Post to Slack immediately regardless of client lookup
+        if topic in SLACK_MESSAGES:
+            title, msg = SLACK_MESSAGES[topic]
+            slack_result = post_to_slack(title, msg, {"Topic": topic})
+            print(f"Slack result: {slack_result}")
 
         # Get client info if available
         client_id = payload.get("clientId") or payload.get("client_id")
