@@ -29,13 +29,17 @@ def refresh_jobber_token():
             "refresh_token": jobber_tokens["refresh_token"],
             "grant_type": "refresh_token",
         })
-    if resp.status_code == 200:
-        data = resp.json()
-        jobber_tokens["access_token"] = data["access_token"]
-        jobber_tokens["refresh_token"] = data["refresh_token"]
-        print(f"Token refreshed successfully", flush=True)
-        return True
-    print(f"Token refresh failed: {resp.json()}", flush=True)
+    print(f"Refresh response: {resp.status_code} {resp.text}", flush=True)
+    if resp.status_code == 200 and resp.text.strip():
+        try:
+            data = resp.json()
+            jobber_tokens["access_token"] = data["access_token"]
+            jobber_tokens["refresh_token"] = data["refresh_token"]
+            print(f"Token refreshed successfully", flush=True)
+            return True
+        except Exception as e:
+            print(f"Token refresh parse error: {e}", flush=True)
+    print(f"Token refresh failed", flush=True)
     return False
 
 def jobber_graphql(query):
