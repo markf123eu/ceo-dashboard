@@ -108,9 +108,16 @@ def fetch_jobber_client(client_id):
 def jobber_webhook():
     try:
         data = request.json
-        topic = data.get("topic", "")
         print(f"RAW PAYLOAD: {json.dumps(data)}", flush=True)
-        payload = data.get("data", {})
+        # Handle Jobber's actual webhook format
+        if "webHookEvent" in data.get("data", {}):
+            event = data["data"]["webHookEvent"]
+            topic = event.get("topic", "")
+            item_id = event.get("itemId", "")
+            payload = {"id": item_id, "topic": topic}
+        else:
+            topic = data.get("topic", "")
+            payload = data.get("data", {})
 
         print(f"Received webhook: {topic}", flush=True)
         print(json.dumps(data, indent=2))
