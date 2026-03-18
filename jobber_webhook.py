@@ -48,12 +48,12 @@ def refresh_jobber_token():
 
 def jobber_graphql(query):
     resp = requests.post("https://api.getjobber.com/api/graphql",
-        headers={"Authorization": f"Bearer {jobber_tokens['access_token']}", "Content-Type": "application/json", "X-JOBBER-GRAPHQL-VERSION": "2024-10-01"},
+        headers={"Authorization": f"Bearer {jobber_tokens['access_token']}", "Content-Type": "application/json", "X-JOBBER-GRAPHQL-VERSION": "2023-11-15"},
         json={"query": query})
     if resp.status_code == 401 or resp.json().get("message") == "Access token expired":
         if refresh_jobber_token():
             resp = requests.post("https://api.getjobber.com/api/graphql",
-                headers={"Authorization": f"Bearer {jobber_tokens['access_token']}", "Content-Type": "application/json", "X-JOBBER-GRAPHQL-VERSION": "2024-10-01"},
+                headers={"Authorization": f"Bearer {jobber_tokens['access_token']}", "Content-Type": "application/json", "X-JOBBER-GRAPHQL-VERSION": "2023-11-15"},
                 json={"query": query})
     return resp.json()
 
