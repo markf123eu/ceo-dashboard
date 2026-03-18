@@ -14,6 +14,9 @@ JOBBER_REFRESH_TOKEN = os.getenv("JOBBER_REFRESH_TOKEN")
 JOBBER_CLIENT_ID     = os.getenv("JOBBER_CLIENT_ID")
 JOBBER_CLIENT_SECRET = os.getenv("JOBBER_CLIENT_SECRET")
 
+import threading
+_token_lock = threading.Lock()
+
 # Mutable token storage
 jobber_tokens = {
     "access_token": JOBBER_ACCESS_TOKEN,
@@ -21,7 +24,8 @@ jobber_tokens = {
 }
 
 def refresh_jobber_token():
-    print("Refreshing Jobber token...", flush=True)
+    with _token_lock:
+     print("Refreshing Jobber token...", flush=True)
     resp = requests.post("https://api.getjobber.com/api/oauth/token",
         data={
             "client_id": JOBBER_CLIENT_ID,
@@ -44,12 +48,12 @@ def refresh_jobber_token():
 
 def jobber_graphql(query):
     resp = requests.post("https://api.getjobber.com/api/graphql",
-        headers={"Authorization": f"Bearer {jobber_tokens['access_token']}", "Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {jobber_tokens['access_token']}", "Content-Type": "application/json", "X-JOBBER-GRAPHQL-VERSION": "2024-10-01"},
         json={"query": query})
     if resp.status_code == 401 or resp.json().get("message") == "Access token expired":
         if refresh_jobber_token():
             resp = requests.post("https://api.getjobber.com/api/graphql",
-                headers={"Authorization": f"Bearer {jobber_tokens['access_token']}", "Content-Type": "application/json"},
+                headers={"Authorization": f"Bearer {jobber_tokens['access_token']}", "Content-Type": "application/json", "X-JOBBER-GRAPHQL-VERSION": "2024-10-01"},
                 json={"query": query})
     return resp.json()
 
