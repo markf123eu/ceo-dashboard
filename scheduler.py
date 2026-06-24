@@ -10,7 +10,7 @@ def run_daily():
 
 # Run immediately on startup for testing
 print("Running immediate test...")
-run_daily()
+run_weekly()
 
 # Weekly report — Monday 8am
 schedule.every().monday.at("08:00").do(run_weekly)
