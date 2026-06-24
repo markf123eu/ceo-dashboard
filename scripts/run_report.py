@@ -6,7 +6,7 @@ from facebook_leads import fetch_and_analyse, fetch_forms, fetch_leads, parse_fi
 from google_ads import fetch_and_analyse as ga_fetch
 from slack_reporter import build_report, post_to_slack
 from email_reporter import send_all
-from hubspot_pipeline import fetch_hp_qualified, fetch_new_contacts_by_type, fetch_hp_pipeline_summary
+from hubspot_pipeline import fetch_hp_qualified, fetch_hp_pipeline_summary
 from jobber_surveys import fetch_site_surveys
 
 parser = argparse.ArgumentParser()
