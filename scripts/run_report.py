@@ -6,7 +6,7 @@ from facebook_leads import fetch_and_analyse, fetch_forms, fetch_leads, parse_fi
 from google_ads import fetch_and_analyse as ga_fetch
 from slack_reporter import build_report, post_to_slack
 from email_reporter import send_all
-from hubspot_pipeline import fetch_hp_qualified, fetch_new_contacts_by_type
+from hubspot_pipeline import fetch_hp_qualified, fetch_new_contacts_by_type, fetch_hp_pipeline_summary
 from jobber_surveys import fetch_site_surveys
 
 parser = argparse.ArgumentParser()
@@ -135,10 +135,19 @@ try:
     hp_qualified = fetch_hp_qualified(since, until)
     hp_qualified_count = hp_qualified["count"]
     print(f"  HP qualified: {hp_qualified_count}")
+    print("Fetching HubSpot HP pipeline summary...")
+    try:
+        pipeline_summary = fetch_hp_pipeline_summary()
+        for stage, count in pipeline_summary.items():
+            print(f"  {stage}: {count}")
+    except Exception as e:
+        print(f"  ⚠️  Pipeline summary failed: {e}")
+        pipeline_summary = {}
 except Exception as e:
     print(f"  ⚠️  HubSpot HP qualified failed: {e}")
     hp_qualified = None
     hp_qualified_count = None
+    pipeline_summary = {}
 
 # Combined totals
 total_boiler_leads = fb_boiler_leads + ga_boiler_leads
@@ -173,7 +182,7 @@ print("\n💾 Saved to data/latest.json")
 if args.dry_run:
     print("\n✅ Dry run complete — no Slack message or emails sent")
 else:
-    blocks = build_report(data, prev_data, ga_data, ga_prev)
+    blocks = build_report(data, prev_data, ga_data, ga_prev, pipeline_summary=pipeline_summary)
     post_to_slack(blocks)
     if not args.no_email:
         send_all(data, prev_data, ga_data, ga_prev)
