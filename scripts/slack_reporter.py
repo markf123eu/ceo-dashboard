@@ -125,7 +125,20 @@ def is_hiring_campaign(name):
     keywords = ["hiring", "recruit", "job", "career", "vacancy", "staff"]
     return any(k in (name or "").lower() for k in keywords)
 
-def build_report(data, prev_data=None, ga_data=None, ga_prev=None):
+def build_hp_pipeline_text(pipeline_summary):
+    if not pipeline_summary:
+        return "_No pipeline data_"
+    stage_order = ["Qualified", "Consultation Complete", "BER / HEA", "Quote Sent", "Closed Won", "Closed Lost"]
+    icons = {"Qualified":"🟢", "Consultation Complete":"📞", "BER / HEA":"📋",
+             "Quote Sent":"📝", "Closed Won":"✅", "Closed Lost":"❌"}
+    lines = []
+    for stage in stage_order:
+        count = pipeline_summary.get(stage, 0)
+        icon = icons.get(stage, "•")
+        lines.append(f"{icon} *{stage}*: `{count}`")
+    return "\n".join(lines)
+
+def build_report(data, prev_data=None, ga_data=None, ga_prev=None, pipeline_summary=None):
     t      = data["totals"]
     g      = data["geography"]
     tl     = data["timelines"]
@@ -302,6 +315,7 @@ def build_report(data, prev_data=None, ga_data=None, ga_prev=None):
             {"type":"mrkdwn","text":f"*Combined HP*\n`{total_hp_leads}` leads | {_eur(total_hp_spend)} | *{_eur(total_hp_cpl)} CPL*"},
             {"type":"mrkdwn","text":f"*Weekly Budget*\n{_eur(total_hp_spend)} / {_eur(hp_weekly_budget)}\n_{_spend_status(total_hp_spend, hp_weekly_budget)}_"},
         ]},
+        {"type":"section","text":{"type":"mrkdwn","text":f"*🔄 HP Pipeline (All Active Deals)*\n{build_hp_pipeline_text(pipeline_summary)}"}},
         {"type":"section","text":{"type":"mrkdwn","text":f"*📣 FB Heat Pump Campaigns*\n{fb_hp_camp_text}"}},
         {"type":"section","text":{"type":"mrkdwn","text":f"*🔍 Google Heat Pump Campaigns*\n{ga_hp_camp_text}"}},
         {"type":"section","text":{"type":"mrkdwn","text":f"*♨️ Hot HP Leads*\n{hot_hp_text}"}},
