@@ -2,7 +2,7 @@ import schedule, time, subprocess, os
 
 def run_weekly():
     print("Running weekly report...")
-    subprocess.run(["python3", "scripts/run_report.py"], cwd=os.path.dirname(os.path.abspath(__file__)))
+    subprocess.run(["python3", "scripts/run_report.py", "--no-email"], cwd=os.path.dirname(os.path.abspath(__file__)))
 
 def run_daily():
     print("Running daily report...")
