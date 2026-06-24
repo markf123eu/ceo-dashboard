@@ -74,6 +74,14 @@ if ga_data:
 print(f"  Priority:    {data['priority_leads']} hot leads")
 print(f"  Dupes:       {data['totals']['duplicates']} removed")
 
+print("\nFacebook Campaign Breakdown:")
+for camp, info in data['cpl']['by_campaign'].items():
+    print(f"  {camp}: {info['leads']} leads | €{info['spend']} spend | CPL: €{info['cpl']}")
+if ga_data:
+    print("\nGoogle Ads Campaign Breakdown:")
+    for camp, info in ga_data['campaigns'].items():
+        print(f"  {camp}: {info['leads']} leads | €{info['spend']} spend | CPL: €{info['cpl']}")
+
 os.makedirs(os.path.join(os.path.dirname(__file__), "../data"), exist_ok=True)
 with open(os.path.join(os.path.dirname(__file__), "../data/latest.json"), "w") as f:
     json.dump({k:v for k,v in data.items() if k != "_leads"}, f, indent=2)
