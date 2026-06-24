@@ -200,11 +200,7 @@ def jobber_webhook():
         print(f"Received webhook: {topic}", flush=True)
         print(json.dumps(data, indent=2))
         
-        # Post to Slack immediately regardless of client lookup
-        if topic in SLACK_MESSAGES:
-            title, msg = SLACK_MESSAGES[topic]
-            slack_result = post_to_slack(title, msg, {"Topic": topic})
-            print(f"Slack result: {slack_result}")
+
 
         # Fetch full details from Jobber using itemId
         item_id = payload.get("id", "")
@@ -241,10 +237,7 @@ def jobber_webhook():
         if title: details["📌 Title"] = title
         if client_email: details["📧 Email"] = client_email
 
-        # Post to Slack
-        if topic in SLACK_MESSAGES:
-            title, msg = SLACK_MESSAGES[topic]
-            post_to_slack(title, msg, details)
+
 
         # Update HubSpot
         if topic in STAGE_MAP and client_email:
