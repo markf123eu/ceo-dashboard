@@ -6,15 +6,23 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "config/.env"))
 
 app = Flask(__name__)
 
-SLACK_BOT_TOKEN  = os.getenv("SLACK_BOT_TOKEN")
-SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")
-HUBSPOT_TOKEN    = os.getenv("HUBSPOT_TOKEN")
-JOBBER_ACCESS_TOKEN  = os.getenv("JOBBER_ACCESS_TOKEN")
-JOBBER_REFRESH_TOKEN = os.getenv("JOBBER_REFRESH_TOKEN")
-JOBBER_CLIENT_ID     = os.getenv("JOBBER_CLIENT_ID")
-JOBBER_CLIENT_SECRET = os.getenv("JOBBER_CLIENT_SECRET")
-SLACK_BOILER_LEADS_CHANNEL = os.getenv("SLACK_BOILER_LEADS_CHANNEL")
-SLACK_HP_LEADS_CHANNEL     = os.getenv("SLACK_HP_LEADS_CHANNEL")
+SLACK_BOT_TOKEN              = os.getenv("SLACK_BOT_TOKEN")
+SLACK_CHANNEL_ID             = os.getenv("SLACK_CHANNEL_ID")
+SLACK_BOILER_LEADS_CHANNEL   = os.getenv("SLACK_BOILER_LEADS_CHANNEL")
+SLACK_HP_LEADS_CHANNEL       = os.getenv("SLACK_HP_LEADS_CHANNEL")
+HUBSPOT_TOKEN                = os.getenv("HUBSPOT_TOKEN")
+JOBBER_ACCESS_TOKEN          = os.getenv("JOBBER_ACCESS_TOKEN")
+JOBBER_REFRESH_TOKEN         = os.getenv("JOBBER_REFRESH_TOKEN")
+JOBBER_CLIENT_ID             = os.getenv("JOBBER_CLIENT_ID")
+JOBBER_CLIENT_SECRET         = os.getenv("JOBBER_CLIENT_SECRET")
+
+import threading
+_token_lock = threading.Lock()
+
+jobber_tokens = {
+    "access_token": JOBBER_ACCESS_TOKEN,
+    "refresh_token": JOBBER_REFRESH_TOKEN,
+}
 
 HIRING_KEYWORDS = ["hiring", "recruit", "job", "career", "vacancy", "staff"]
 
@@ -34,18 +42,9 @@ def clean_source(source):
     s = s.replace("Top-Rated Boiler Services in Ireland | EnergyUpgrade.ie: .g-container", "Website")
     return s[:60]
 
-import threading
-_token_lock = threading.Lock()
-
-# Mutable token storage
-jobber_tokens = {
-    "access_token": JOBBER_ACCESS_TOKEN,
-    "refresh_token": JOBBER_REFRESH_TOKEN,
-}
-
 def refresh_jobber_token():
     with _token_lock:
-     print("Refreshing Jobber token...", flush=True)
+        print("Refreshing Jobber token...", flush=True)
     resp = requests.post("https://api.getjobber.com/api/oauth/token",
         data={
             "client_id": JOBBER_CLIENT_ID,
@@ -77,42 +76,6 @@ def jobber_graphql(query):
                 json={"query": query})
     return resp.json()
 
-# HubSpot Sales Pipeline stage IDs
-HUBSPOT_PIPELINE_ID = "default"
-STAGE_MAP = {
-    "REQUEST_UPDATE":  "qualifiedtobuy",
-    "QUOTE_SENT":      "presentationscheduled",
-    "QUOTE_UPDATE":    "1446705391",
-    "JOB_UPDATE":      "contractsent",
-    "VISIT_COMPLETE":  "closedwon",
-    "PAYMENT_CREATE":  "closedwon",
-}
-
-SLACK_MESSAGES = {
-    "CLIENT_CREATE":   ("👤 New Client", "A new client has been added in Jobber"),
-    "REQUEST_UPDATE":  ("📋 New Request", "A new request has been created in Jobber"),
-    "QUOTE_SENT":      ("📝 Quote Sent", "A quote has been sent to a client"),
-    "QUOTE_UPDATE":    ("✅ Quote Approved", "A quote has been approved"),
-    "JOB_UPDATE":      ("🔧 Job Scheduled", "A job has been scheduled"),
-    "VISIT_COMPLETE":  ("🎉 Job Completed", "A job has been completed"),
-    "PAYMENT_CREATE":  ("💰 Payment Received", "A payment has been received"),
-    "EXPENSE_CREATE":  ("🧾 Expense Added", "A new expense has been recorded"),
-    "TIMESHEET_CREATE":("⏱️ Timesheet Entry", "A new timesheet entry has been added"),
-}
-
-def post_to_slack(title, message, details=None, color="#36a64f"):
-    blocks = [
-        {"type": "section", "text": {"type": "mrkdwn", "text": f"*{title}*\n{message}"}},
-    ]
-    if details:
-        fields = [{"type": "mrkdwn", "text": f"*{k}*\n{v}"} for k, v in details.items()]
-        blocks.append({"type": "section", "fields": fields[:10]})
-
-    resp = requests.post("https://slack.com/api/chat.postMessage",
-        headers={"Authorization": f"Bearer {SLACK_BOT_TOKEN}", "Content-Type": "application/json"},
-        json={"channel": SLACK_CHANNEL_ID, "text": title, "blocks": blocks})
-    return resp.json()
-
 def get_hubspot_contact(email):
     if not email: return None
     resp = requests.get(f"https://api.hubapi.com/crm/v3/objects/contacts/search",
@@ -125,13 +88,12 @@ def get_hubspot_contact(email):
 def create_or_update_hubspot_deal(contact_id, deal_name, stage_id, amount=None, jobber_id=None):
     props = {
         "dealname": deal_name,
-        "pipeline": HUBSPOT_PIPELINE_ID,
+        "pipeline": "default",
         "dealstage": stage_id,
     }
     if amount: props["amount"] = amount
     if jobber_id: props["description"] = f"Jobber ID: {jobber_id}"
 
-    # Search for existing deal
     search_resp = requests.post("https://api.hubapi.com/crm/v3/objects/deals/search",
         headers={"Authorization": f"Bearer {HUBSPOT_TOKEN}", "Content-Type": "application/json"},
         json={"filterGroups": [{"filters": [{"propertyName": "description", "operator": "CONTAINS_TOKEN", "value": f"Jobber ID: {jobber_id}"}]}]}) if jobber_id else None
@@ -167,7 +129,6 @@ def fetch_jobber_request(request_id):
             }}
         }}
     """)
-    print(f"Jobber request fetch: {result}", flush=True)
     return result.get("data", {}).get("request")
 
 def fetch_jobber_job(job_id):
@@ -183,7 +144,6 @@ def fetch_jobber_job(job_id):
             }}
         }}
     """)
-    print(f"Jobber job fetch: {result}", flush=True)
     return result.get("data", {}).get("job")
 
 def fetch_jobber_quote(quote_id):
@@ -199,15 +159,22 @@ def fetch_jobber_quote(quote_id):
             }}
         }}
     """)
-    print(f"Jobber quote fetch: {result}", flush=True)
     return result.get("data", {}).get("quote")
+
+STAGE_MAP = {
+    "REQUEST_UPDATE":  "qualifiedtobuy",
+    "QUOTE_SENT":      "presentationscheduled",
+    "QUOTE_UPDATE":    "1446705391",
+    "JOB_UPDATE":      "contractsent",
+    "VISIT_COMPLETE":  "closedwon",
+    "PAYMENT_CREATE":  "closedwon",
+}
 
 @app.route("/webhook/jobber", methods=["POST"])
 def jobber_webhook():
     try:
         data = request.json
         print(f"RAW PAYLOAD: {json.dumps(data)}", flush=True)
-        # Handle Jobber's actual webhook format
         if "webHookEvent" in data.get("data", {}):
             event = data["data"]["webHookEvent"]
             topic = event.get("topic", "")
@@ -218,18 +185,12 @@ def jobber_webhook():
             payload = data.get("data", {})
 
         print(f"Received webhook: {topic}", flush=True)
-        print(json.dumps(data, indent=2))
-        
 
-
-        # Fetch full details from Jobber using itemId
         item_id = payload.get("id", "")
-        client = None
         client_name = "Unknown"
         client_email = None
         job_number = None
         total = None
-        title = None
 
         if item_id:
             if topic in ("REQUEST_UPDATE",):
@@ -248,16 +209,6 @@ def jobber_webhook():
                 client_email = emails[0].get("address") if emails else None
                 job_number = record.get("jobNumber")
                 total = record.get("total")
-                title = record.get("title")
-
-        # Build Slack details
-        details = {"👤 Client": client_name}
-        if job_number: details["📋 Job #"] = str(job_number)
-        if total: details["💶 Value"] = f"€{total}"
-        if title: details["📌 Title"] = title
-        if client_email: details["📧 Email"] = client_email
-
-
 
         # Update HubSpot
         if topic in STAGE_MAP and client_email:
@@ -265,13 +216,97 @@ def jobber_webhook():
             contact_id = contact["id"] if contact else None
             jobber_id = payload.get("id", "")
             deal_name = f"{client_name} — Boiler Replacement"
-            create_or_update_hubspot_deal(contact_id, deal_name, STAGE_MAP[topic], 
+            create_or_update_hubspot_deal(contact_id, deal_name, STAGE_MAP[topic],
                 amount=payload.get("total"), jobber_id=jobber_id)
 
         return jsonify({"status": "ok"}), 200
 
     except Exception as e:
         print(f"Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/webhook/hubspot", methods=["POST"])
+def hubspot_webhook():
+    try:
+        events = request.json
+        if not events:
+            return jsonify({"status": "ok"}), 200
+
+        print(f"HubSpot webhook received: {len(events)} events", flush=True)
+
+        for event in events:
+            event_type = event.get("subscriptionType", "")
+            if event_type != "contact.creation":
+                continue
+
+            contact_id = event.get("objectId")
+            if not contact_id:
+                continue
+
+            resp = requests.get(
+                f"https://api.hubapi.com/crm/v3/objects/contacts/{contact_id}",
+                headers={"Authorization": f"Bearer {HUBSPOT_TOKEN}", "Content-Type": "application/json"},
+                params={"properties": "firstname,lastname,phone,email,first_conversion_event_name,what_is_your_eircode,when_are_you_looking_to_replace_your_boiler"}
+            )
+            contact = resp.json().get("properties", {})
+
+            first_name = contact.get("firstname", "") or ""
+            last_name  = contact.get("lastname", "") or ""
+            name       = f"{first_name} {last_name}".strip() or "Unknown"
+            phone      = contact.get("phone", "") or "No phone"
+            email      = contact.get("email", "") or "No email"
+            source     = contact.get("first_conversion_event_name", "") or ""
+            eircode    = contact.get("what_is_your_eircode", "") or "—"
+            timeline   = contact.get("when_are_you_looking_to_replace_your_boiler", "") or "—"
+            reason     = contact.get("what_is_your_reason_for_wanting_to_replace", "") or "—"
+
+            TIMELINE_LABELS = {
+                "asap":            "🔥 ASAP",
+                "within_1_month":  "⚡ Within 1 Month",
+                "within_3_months": "📅 Within 3 Months",
+                "unknown":         "❓ Unknown",
+            }
+            timeline_display = TIMELINE_LABELS.get(timeline.lower().replace(" ", "_"), timeline)
+
+            if is_hiring_lead(source):
+                print(f"  Skipping hiring lead: {name}", flush=True)
+                continue
+
+            hp           = is_hp_lead(source)
+            channel      = SLACK_HP_LEADS_CHANNEL if hp else SLACK_BOILER_LEADS_CHANNEL
+            icon         = "♨️" if hp else "🔥"
+            label        = "Heat Pump" if hp else "Boiler"
+            source_clean = clean_source(source)
+
+            blocks = [
+                {"type": "header", "text": {"type": "plain_text", "text": f"{icon} New {label} Lead"}},
+                {"type": "section", "fields": [
+                    {"type": "mrkdwn", "text": f"*Name*\n{name}"},
+                    {"type": "mrkdwn", "text": f"*Phone*\n{phone}"},
+                    {"type": "mrkdwn", "text": f"*Eircode*\n{eircode}"},
+                    {"type": "mrkdwn", "text": f"*Timeline*\n{timeline_display}"},
+                    {"type": "mrkdwn", "text": f"*Reason*\n{reason}"},
+                    {"type": "mrkdwn", "text": f"*Email*\n{email}"},
+                    {"type": "mrkdwn", "text": f"*Source*\n{source_clean}"},
+                ]},
+                {"type": "context", "elements": [{"type": "mrkdwn", "text": f"Via HubSpot • {label} Lead"}]},
+            ]
+
+            result = requests.post(
+                "https://slack.com/api/chat.postMessage",
+                headers={"Authorization": f"Bearer {SLACK_BOT_TOKEN}", "Content-Type": "application/json"},
+                json={"channel": channel, "text": f"New {label} Lead: {name}", "blocks": blocks}
+            ).json()
+
+            if result.get("ok"):
+                print(f"  ✅ Posted {label} lead {name} to Slack", flush=True)
+            else:
+                print(f"  ❌ Slack error: {result.get('error')}", flush=True)
+
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        print(f"HubSpot webhook error: {e}", flush=True)
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/callback", methods=["GET"])
@@ -283,13 +318,16 @@ def callback():
 def health():
     return "Energy Upgrade Webhook Server running", 200
 
-
 @app.route("/test-slack", methods=["GET"])
 def test_slack():
-    result = post_to_slack("🧪 Test", "Webhook server is working!", {"Status": "Connected"})
-    return jsonify(result), 200
+    result = requests.post("https://slack.com/api/chat.postMessage",
+        headers={"Authorization": f"Bearer {SLACK_BOT_TOKEN}", "Content-Type": "application/json"},
+        json={"channel": SLACK_CHANNEL_ID, "text": "🧪 Test", "blocks": [
+            {"type": "section", "text": {"type": "mrkdwn", "text": "*🧪 Test*\nWebhook server is working!"}},
+            {"type": "section", "fields": [{"type": "mrkdwn", "text": "*Status*\nConnected"}]}
+        ]})
+    return jsonify(result.json()), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
-
