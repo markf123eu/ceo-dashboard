@@ -78,7 +78,7 @@ def jobber_graphql(query):
 
 def get_hubspot_contact(email):
     if not email: return None
-    resp = requests.get(f"https://api.hubapi.com/crm/v3/objects/contacts/search",
+    resp = requests.get("https://api.hubapi.com/crm/v3/objects/contacts/search",
         headers={"Authorization": f"Bearer {HUBSPOT_TOKEN}", "Content-Type": "application/json"},
         json={"filterGroups": [{"filters": [{"propertyName": "email", "operator": "EQ", "value": email}]}],
               "properties": ["firstname", "lastname", "email", "hs_lead_source"]})
@@ -86,11 +86,7 @@ def get_hubspot_contact(email):
     return results[0] if results else None
 
 def create_or_update_hubspot_deal(contact_id, deal_name, stage_id, amount=None, jobber_id=None):
-    props = {
-        "dealname": deal_name,
-        "pipeline": "default",
-        "dealstage": stage_id,
-    }
+    props = {"dealname": deal_name, "pipeline": "default", "dealstage": stage_id}
     if amount: props["amount"] = amount
     if jobber_id: props["description"] = f"Jobber ID: {jobber_id}"
 
@@ -99,7 +95,6 @@ def create_or_update_hubspot_deal(contact_id, deal_name, stage_id, amount=None, 
         json={"filterGroups": [{"filters": [{"propertyName": "description", "operator": "CONTAINS_TOKEN", "value": f"Jobber ID: {jobber_id}"}]}]}) if jobber_id else None
 
     existing = search_resp.json().get("results", []) if search_resp else []
-
     if existing:
         deal_id = existing[0]["id"]
         requests.patch(f"https://api.hubapi.com/crm/v3/objects/deals/{deal_id}",
@@ -121,11 +116,7 @@ def fetch_jobber_request(request_id):
         query {{
             request(id: "{request_id}") {{
                 id title
-                client {{
-                    id name
-                    emails {{ address }}
-                    phones {{ number }}
-                }}
+                client {{ id name emails {{ address }} phones {{ number }} }}
             }}
         }}
     """)
@@ -136,11 +127,7 @@ def fetch_jobber_job(job_id):
         query {{
             job(id: "{job_id}") {{
                 id title jobNumber total
-                client {{
-                    id name
-                    emails {{ address }}
-                    phones {{ number }}
-                }}
+                client {{ id name emails {{ address }} phones {{ number }} }}
             }}
         }}
     """)
@@ -151,23 +138,19 @@ def fetch_jobber_quote(quote_id):
         query {{
             quote(id: "{quote_id}") {{
                 id title total
-                client {{
-                    id name
-                    emails {{ address }}
-                    phones {{ number }}
-                }}
+                client {{ id name emails {{ address }} phones {{ number }} }}
             }}
         }}
     """)
     return result.get("data", {}).get("quote")
 
 STAGE_MAP = {
-    "REQUEST_UPDATE":  "qualifiedtobuy",
-    "QUOTE_SENT":      "presentationscheduled",
-    "QUOTE_UPDATE":    "1446705391",
-    "JOB_UPDATE":      "contractsent",
-    "VISIT_COMPLETE":  "closedwon",
-    "PAYMENT_CREATE":  "closedwon",
+    "REQUEST_UPDATE": "qualifiedtobuy",
+    "QUOTE_SENT":     "presentationscheduled",
+    "QUOTE_UPDATE":   "1446705391",
+    "JOB_UPDATE":     "contractsent",
+    "VISIT_COMPLETE": "closedwon",
+    "PAYMENT_CREATE": "closedwon",
 }
 
 @app.route("/webhook/jobber", methods=["POST"])
@@ -189,8 +172,6 @@ def jobber_webhook():
         item_id = payload.get("id", "")
         client_name = "Unknown"
         client_email = None
-        job_number = None
-        total = None
 
         if item_id:
             if topic in ("REQUEST_UPDATE",):
@@ -207,17 +188,13 @@ def jobber_webhook():
                 client_name = client.get("name", "Unknown")
                 emails = client.get("emails", [])
                 client_email = emails[0].get("address") if emails else None
-                job_number = record.get("jobNumber")
-                total = record.get("total")
 
-        # Update HubSpot
         if topic in STAGE_MAP and client_email:
             contact = get_hubspot_contact(client_email)
             contact_id = contact["id"] if contact else None
-            jobber_id = payload.get("id", "")
             deal_name = f"{client_name} — Boiler Replacement"
             create_or_update_hubspot_deal(contact_id, deal_name, STAGE_MAP[topic],
-                amount=payload.get("total"), jobber_id=jobber_id)
+                amount=payload.get("total"), jobber_id=payload.get("id", ""))
 
         return jsonify({"status": "ok"}), 200
 
@@ -235,8 +212,7 @@ def hubspot_webhook():
         print(f"HubSpot webhook received: {len(events)} events", flush=True)
 
         for event in events:
-            event_type = event.get("subscriptionType", "")
-            if event_type != "contact.creation":
+            if event.get("subscriptionType") != "contact.creation":
                 continue
 
             contact_id = event.get("objectId")
@@ -246,7 +222,7 @@ def hubspot_webhook():
             resp = requests.get(
                 f"https://api.hubapi.com/crm/v3/objects/contacts/{contact_id}",
                 headers={"Authorization": f"Bearer {HUBSPOT_TOKEN}", "Content-Type": "application/json"},
-                params={"properties": "firstname,lastname,phone,email,first_conversion_event_name,what_is_your_eircode,when_are_you_looking_to_replace_your_boiler"}
+                params={"properties": "firstname,lastname,phone,email,first_conversion_event_name,what_is_your_eircode,when_are_you_looking_to_replace_your_boiler,what_is_your_reason_for_wanting_to_replace"}
             )
             contact = resp.json().get("properties", {})
 
@@ -261,10 +237,10 @@ def hubspot_webhook():
             reason     = contact.get("what_is_your_reason_for_wanting_to_replace", "") or "—"
 
             TIMELINE_LABELS = {
-                "asap":            "🔥 ASAP",
-                "within_1_month":  "⚡ Within 1 Month",
-                "within_3_months": "📅 Within 3 Months",
-                "unknown":         "❓ Unknown",
+                "asap":           "🔥 ASAP",
+                "within_1_month": "⚡ Within 1 Month",
+                "within_3_months":"📅 Within 3 Months",
+                "unknown":        "❓ Unknown",
             }
             timeline_display = TIMELINE_LABELS.get(timeline.lower().replace(" ", "_"), timeline)
 
@@ -285,6 +261,8 @@ def hubspot_webhook():
                     {"type": "mrkdwn", "text": f"*Phone*\n{phone}"},
                     {"type": "mrkdwn", "text": f"*Eircode*\n{eircode}"},
                     {"type": "mrkdwn", "text": f"*Timeline*\n{timeline_display}"},
+                ]},
+                {"type": "section", "fields": [
                     {"type": "mrkdwn", "text": f"*Reason*\n{reason}"},
                     {"type": "mrkdwn", "text": f"*Email*\n{email}"},
                     {"type": "mrkdwn", "text": f"*Source*\n{source_clean}"},
