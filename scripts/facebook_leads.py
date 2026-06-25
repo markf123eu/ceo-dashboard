@@ -103,8 +103,6 @@ def parse_fields(field_data):
     result={}
     if field_data: print(f"  DEBUG field names: {[item.get('name','') for item in field_data]}", flush=True)
     for item in (field_data or []):
-
-    for item in (field_data or []):
         k=item.get("name","").lower().replace(" ","_")
         v=item.get("values",[])
         result[k]=v[0] if v else None
