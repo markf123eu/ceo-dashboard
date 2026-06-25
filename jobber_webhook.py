@@ -1,6 +1,7 @@
 import os, json, requests, sys
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+from token_manager import persist_jobber_tokens
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "config/.env"))
 
@@ -59,6 +60,10 @@ def refresh_jobber_token():
             jobber_tokens["access_token"] = data["access_token"]
             jobber_tokens["refresh_token"] = data["refresh_token"]
             print(f"Token refreshed successfully", flush=True)
+            try:
+                persist_jobber_tokens(data["access_token"], data["refresh_token"])
+            except Exception as te:
+                print(f"  ⚠️  Token persist failed: {te}", flush=True)
             return True
         except Exception as e:
             print(f"Token refresh parse error: {e}", flush=True)
