@@ -101,7 +101,8 @@ def fetch_spend(since, until):
 
 def parse_fields(field_data):
     result={}
-        if field_data: print(f"  DEBUG field names: {[item.get('name','') for item in field_data]}", flush=True)
+    if field_data: print(f"  DEBUG field names: {[item.get('name','') for item in field_data]}", flush=True)
+    for item in (field_data or []):
 
     for item in (field_data or []):
         k=item.get("name","").lower().replace(" ","_")
