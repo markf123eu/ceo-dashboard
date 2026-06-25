@@ -13,6 +13,26 @@ JOBBER_ACCESS_TOKEN  = os.getenv("JOBBER_ACCESS_TOKEN")
 JOBBER_REFRESH_TOKEN = os.getenv("JOBBER_REFRESH_TOKEN")
 JOBBER_CLIENT_ID     = os.getenv("JOBBER_CLIENT_ID")
 JOBBER_CLIENT_SECRET = os.getenv("JOBBER_CLIENT_SECRET")
+SLACK_BOILER_LEADS_CHANNEL = os.getenv("SLACK_BOILER_LEADS_CHANNEL")
+SLACK_HP_LEADS_CHANNEL     = os.getenv("SLACK_HP_LEADS_CHANNEL")
+
+HIRING_KEYWORDS = ["hiring", "recruit", "job", "career", "vacancy", "staff"]
+
+def is_hp_lead(source):
+    s = (source or "").lower()
+    return "hp" in s or "heat pump" in s or "heatpump" in s
+
+def is_hiring_lead(source):
+    s = (source or "").lower()
+    return any(k in s for k in HIRING_KEYWORDS)
+
+def clean_source(source):
+    if not source: return "Unknown"
+    s = source.replace("Facebook Lead Ads: ", "")
+    s = s.replace("Free Boiler Estimate — EnergyUpgrade.ie: #boiler-estimate-form .estimate-form, .hs-form", "Website Form")
+    s = s.replace("Get a Heat pump estimate — EnergyUpgrade.ie: #solar-estimate-form .estimate-form, .hs-form", "Website HP Form")
+    s = s.replace("Top-Rated Boiler Services in Ireland | EnergyUpgrade.ie: .g-container", "Website")
+    return s[:60]
 
 import threading
 _token_lock = threading.Lock()
